@@ -2,8 +2,8 @@ use std::fs;
 use lazy_static::lazy_static;
 use ethers::providers::{JsonRpcClient, Provider, Ws};
 use ethers_core::{abi::Abi, types::Filter};
-use futures_util::stream::StreamExt;
 use futures_util::join;
+use tokio::time;
 
 /// Infura websocket address
 static INFURA: &str = "wss://ropsten.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
@@ -32,10 +32,14 @@ async fn watcher<P: JsonRpcClient>(provider: &Provider<P>, event: &str, address:
         .unwrap()
         .topic0(signature);
 
-    let mut stream = provider.watch(&filter).await?;
+    loop {
+        let logs = provider.get_logs(&filter).await?;
 
-    while let Some(item) = stream.next().await {
-        println!("{:?}", item);
+        for log in logs {
+            println!("{:?}", log);
+        }
+
+        time::delay_for(std::time::Duration::new(5, 0)).await;
     }
 
     Ok(())
