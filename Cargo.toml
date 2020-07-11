@@ -1,0 +1,17 @@
+[package]
+name = "tbtc4u"
+version = "0.1.0"
+authors = ["Mark Tyneway <mark.tyneway@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+ethers = { git = "https://github.com/gakonst/ethers-rs" }
+ethers-core = { git = "https://github.com/gakonst/ethers-rs" }
+ethers-contract = { git = "https://github.com/gakonst/ethers-rs" }
+ethers-signers = { git = "https://github.com/gakonst/ethers-rs" }
+serde_json = { version = "1.0" }
+tokio-tls = { version = "0.3.1" }
+tokio = { version = "0.2.21", features = ["full"] }

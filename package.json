@@ -1,0 +1,23 @@
+{
+  "name": "tbtc4u",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prestwich/tbtc4u.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/prestwich/tbtc4u/issues"
+  },
+  "homepage": "https://github.com/prestwich/tbtc4u#readme",
+  "dependencies": {
+    "@keep-network/tbtc": "^1.0.3-rc.1"
+  }
+}

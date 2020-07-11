@@ -1,0 +1,22 @@
+{
+  "3": {
+    "events": {
+      "0x1d6e7961301df0f19b325bf7669f5b932069b5ad8f9b71292351c7bed17cf4f1": {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": false,
+            "name": "depositCloneAddress",
+            "type": "address"
+          }
+        ],
+        "name": "DepositCloneCreated",
+        "type": "event",
+        "signature": "0x1d6e7961301df0f19b325bf7669f5b932069b5ad8f9b71292351c7bed17cf4f1"
+      }
+    },
+    "links": {},
+    "address": "0x38DD8395AC489D23bf2E4e94e988FfE8Db8b70e8",
+    "transactionHash": "0x4cee3628ca09979ccab8c7de032c041c5bea5b90c62a64b9c5ef17768670146a"
+  }
+}
