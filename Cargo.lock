@@ -1416,6 +1416,7 @@ dependencies = [
  "ethers-core",
  "ethers-signers",
  "futures-util",
+ "lazy_static",
  "serde_json",
  "tokio",
  "tokio-tls",

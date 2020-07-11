@@ -1,6 +1,6 @@
 use std::fs;
-use serde_json;
-use ethers::providers::{Provider, Ws};
+use lazy_static::lazy_static;
+use ethers::providers::{JsonRpcClient, Provider, Ws};
 use ethers_core::{abi::Abi, types::Filter};
 use futures_util::stream::StreamExt;
 use futures_util::join;
@@ -12,39 +12,44 @@ static INFURA: &str = "wss://ropsten.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229edd
 static DEPOSIT_FACTORY: &str = "5536a33ed2d7e055f7f380a78ae9187a3b1d8f75";
 static TBTC_SYSTEM: &str = "14dc06f762e7f4a756825c1a1da569b3180153cb";
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-    async fn watcher(event: &str, address: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let ws = Ws::connect(INFURA).await.unwrap();
-        let provider = Provider::new(ws);
+lazy_static! {
+    static ref ABI: Abi = {
+        let json = fs::read_to_string("depositLog.json").unwrap();
+        serde_json::from_str(&json).unwrap()
+    };
+}
 
-        let json = fs::read_to_string("depositLog.json")?;
-        let abi: Abi = serde_json::from_str(&json)?;
-        let event = abi.event(event)?;
-        let signature = event.signature();
+// infinite loop printing events
+async fn watcher<P: JsonRpcClient>(provider: &Provider<P>, event: &str, address: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let event = ABI.event(event)?;
+    let signature = event.signature();
 
-        println!("Event: {:?}", event.name);
-        println!("Topic: {:?}", signature);
+    println!("Event: {:?}", event.name);
+    println!("Topic: {:?}", signature);
 
-        let filter = Filter::new()
-            .address_str(address)
-            .unwrap()
-            .topic0(signature);
+    let filter = Filter::new()
+        .address_str(address)
+        .unwrap()
+        .topic0(signature);
 
-        let mut stream = provider.watch(&filter).await?;
+    let mut stream = provider.watch(&filter).await?;
 
-        while let Some(item) = stream.next().await {
-            println!("{:?}", item);
-        }
-
-        Ok(())
+    while let Some(item) = stream.next().await {
+        println!("{:?}", item);
     }
 
-    let created = watcher("Created", TBTC_SYSTEM);
-    let registered = watcher("RegisteredPubkey", TBTC_SYSTEM);
+    Ok(())
+}
 
-    let redemption_signature = watcher("GotRedemptionSignature", DEPOSIT_FACTORY);
-    let setup_failed = watcher("SetupFailed", DEPOSIT_FACTORY);
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    let ws = Ws::connect(INFURA).await.unwrap();
+    let provider = Provider::new(ws);
+
+    let created = watcher(&provider, "Created", TBTC_SYSTEM);
+    let registered = watcher(&provider, "RegisteredPubkey", TBTC_SYSTEM);
+    let redemption_signature = watcher(&provider, "GotRedemptionSignature", DEPOSIT_FACTORY);
+    let setup_failed = watcher(&provider, "SetupFailed", DEPOSIT_FACTORY);
 
     let (_, _, _, _) = join!(created, registered, redemption_signature, setup_failed);
 
