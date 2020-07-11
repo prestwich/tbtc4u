@@ -1,7 +1,7 @@
 use std::fs;
 use serde_json;
 use ethers::providers::{Provider, Ws};
-use ethers_core::{abi::{Abi, Detokenize, Token, InvalidOutputType}, types::{Address, U256}};
+use ethers_core::{abi::{Abi, Detokenize, Token, InvalidOutputType}, types::{Address, U256, Filter}};
 use ethers_contract::Contract;
 use ethers_signers::Wallet;
 
@@ -40,21 +40,21 @@ async fn main() -> std::io::Result<()> {
         let json = fs::read_to_string("depositLog.json")?;
         let abi: Abi = serde_json::from_str(&json)?;
 
-        let address = "5536a33Ed2D7e055F7F380a78Ae9187A3b1d8f75".parse::<Address>()?;
+        let addr = "5536a33Ed2D7e055F7F380a78Ae9187A3b1d8f75";
 
-        // what is the hex here? private key?
-        let client = "380eb0f3d505f087e438eca80bc4df9a7faa24f868e69fc0440261a0fc0567dc".parse::<Wallet>()?.connect(provider);
+        let filter = Filter::new()
+            .address_str(addr)
+            .unwrap()
+            .event("ValueChanged(address,string,string)");
+            //.topic1(t1)
 
-        let contract = Contract::new(address, abi, client);
+        let stream = provider.watch(&filter).await?;
 
-        let logs: Vec<RegisteredPubkey> = contract
-            .event("RegisteredPubkey")?
-            .from_block(50000u64)
-            .query()
-            .await?;
+        println!("{}", stream);
 
-        // make a stream
-        println!("Logs: {:?}", logs);
+        while let Some(item) = stream.next().await {
+            println!("{}", item);
+        }
 
         Ok(())
     }
