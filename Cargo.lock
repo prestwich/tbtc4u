@@ -1415,6 +1415,7 @@ dependencies = [
  "ethers-contract",
  "ethers-core",
  "ethers-signers",
+ "futures-util",
  "serde_json",
  "tokio",
  "tokio-tls",

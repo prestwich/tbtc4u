@@ -2,8 +2,7 @@ use std::fs;
 use serde_json;
 use ethers::providers::{Provider, Ws};
 use ethers_core::{abi::{Abi, Detokenize, Token, InvalidOutputType}, types::{Address, U256, Filter}};
-use ethers_contract::Contract;
-use ethers_signers::Wallet;
+use futures_util::stream::StreamExt;
 
 #[derive(Clone, Debug)]
 struct RegisteredPubkey {
@@ -29,37 +28,38 @@ impl Detokenize for RegisteredPubkey {
     }
 }
 
+static INFURA: &str = "wss://ropsten.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
 
     async fn foo() -> Result<(), Box<dyn std::error::Error>> {
-        let url = "wss://rinkeby.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
-        let ws = Ws::connect(url).await.unwrap();
+        let ws = Ws::connect(INFURA).await.unwrap();
         let provider = Provider::new(ws);
 
         let json = fs::read_to_string("depositLog.json")?;
         let abi: Abi = serde_json::from_str(&json)?;
 
+        let registered_pubkey = abi.event("RegisteredPubkey")?;
+
+        // Ropsten deploy address
         let addr = "5536a33Ed2D7e055F7F380a78Ae9187A3b1d8f75";
 
         let filter = Filter::new()
             .address_str(addr)
             .unwrap()
-            .event("ValueChanged(address,string,string)");
-            //.topic1(t1)
+            .topic0(registered_pubkey.signature());
 
-        let stream = provider.watch(&filter).await?;
-
-        println!("{}", stream);
+        let mut stream = provider.watch(&filter).await?;
 
         while let Some(item) = stream.next().await {
-            println!("{}", item);
+            println!("{:?}", item);
         }
 
         Ok(())
     }
 
-    let _result = foo().await;
+    let _ = foo().await;
 
     Ok(())
 }
