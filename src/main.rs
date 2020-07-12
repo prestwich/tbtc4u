@@ -2,6 +2,7 @@ mod deposit;
 
 use std::{sync::Arc, time::Duration};
 use tokio::time;
+use lazy_static::lazy_static;
 
 use ethers::{
     providers::{JsonRpcClient, Provider, ProviderError, Ws},
@@ -30,6 +31,16 @@ static WETH: &str = "0a180a76e4466bf68a7f86fb029bed3cccfaaac5";
 abigen!(Weth, "abi/weth.json");
 abigen!(DepositLog, "abi/depositLog.json");
 abigen!(Deposit, "abi/deposit.json");
+
+lazy_static! {
+    static ref APP: App = Default::default();
+}
+
+
+#[derive(Default)]
+struct App {
+    already_tracked: futures_util::lock::Mutex<std::collections::HashSet<Address>>
+}
 
 // infinite loop printing events
 async fn watcher<P: JsonRpcClient>(
@@ -60,6 +71,21 @@ async fn watcher<P: JsonRpcClient>(
     }
 }
 
+/// Make a new deposit state machine
+async fn watch_deposit<'a, P: JsonRpcClient>(
+    address: Address,
+    client: Arc<Client<P, Wallet>>,
+    bitcoin: &'a dyn PollingBTCProvider
+) -> bool {
+    {
+        let mut already_tracked = APP.already_tracked.lock().await;
+        if already_tracked.contains(&address) { return false; }
+        already_tracked.insert(address);
+    }
+    let contract = Deposit::new(address, client);
+    crate::deposit::Deposit::new(contract, bitcoin).await
+}
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let btc: Arc<Box<dyn PollingBTCProvider>> = Arc::new(Box::new(EsploraProvider::default()));
@@ -72,12 +98,16 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .unwrap();
 
-    let client = Client::new(eth, signer);
+    let client = Arc::new(Client::new(eth, signer));
 
     let deposit_log = DepositLog::new(
         TBTC_SYSTEM.parse::<Address>().unwrap(),
-        Arc::new(client)
+        client,
     );
+
+    // TODO:
+    // Poll deposit_log events.
+    // Pass each event's new deposit address to watch_deposit
 
     // let a = watcher(eth.clone(), &WETH_ABI, "Transfer", WETH);
     // let b = watcher(eth.clone(), &WETH_ABI, "Approval", WETH);
