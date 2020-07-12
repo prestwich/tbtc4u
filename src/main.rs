@@ -8,6 +8,8 @@ use futures_util::lock::Mutex;
 
 use rmn_btc_provider::{BTCProvider, esplora::EsploraProvider};
 
+use ethers_contract::abigen;
+
 /// Infura websocket address
 static INFURA: &str = "wss://ropsten.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
 
@@ -16,16 +18,9 @@ static DEPOSIT_FACTORY: &str = "5536a33ed2d7e055f7f380a78ae9187a3b1d8f75";
 static TBTC_SYSTEM: &str = "14dc06f762e7f4a756825c1a1da569b3180153cb";
 static WETH: &str = "0a180a76e4466bf68a7f86fb029bed3cccfaaac5";
 
-lazy_static! {
-    static ref ABI: Abi = {
-        let json = fs::read_to_string("depositLog.json").unwrap();
-        serde_json::from_str(&json).unwrap()
-    };
-    static ref WETH_ABI: Abi = {
-        let json = fs::read_to_string("weth.json").unwrap();
-        serde_json::from_str(&json).unwrap()
-    };
-}
+abigen!(Weth, "abi/weth.json");
+abigen!(DepositLog, "abi/depositLog.json");
+abigen!(Deposit, "abi/deposit.json");
 
 // infinite loop printing events
 async fn watcher<P: JsonRpcClient>(
@@ -89,11 +84,16 @@ async fn main() -> std::io::Result<()> {
     tokio::spawn(b);
     c.await;  // never returns
 
-    // let created = watcher(&eth, &ABI, "Created", TBTC_SYSTEM);
-    // let registered = watcher(&eth, &ABI, "RegisteredPubkey", TBTC_SYSTEM);
-    // let redemption_signature = watcher(&eth, &ABI, "GotRedemptionSignature", DEPOSIT_FACTORY);
-    // let setup_failed = watcher(&eth, &ABI, "SetupFailed", DEPOSIT_FACTORY);
-    // let (_, _, _, _) = join!(created, registered, redemption_signature, setup_failed);
+    /*
+    let created = watcher(eth.clone(), &DEPOSITLOG_ABI, "Created", TBTC_SYSTEM);
+    let registered = watcher(eth.clone(), &DEPOSITLOG_ABI, "RegisteredPubkey", TBTC_SYSTEM);
+    let redemption_signature = watcher(eth.clone(), &DEPOSITLOG_ABI, "GotRedemptionSignature", DEPOSIT_FACTORY);
+    let setup_failed = watcher(eth.clone(), &DEPOSITLOG_ABI, "SetupFailed", DEPOSIT_FACTORY);
+    tokio::spawn(created);
+    tokio::spawn(registered);
+    tokio::spawn(redemption_signature);
+    setup_failed.await;
+    */
 
     Ok(())
 }
