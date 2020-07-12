@@ -92,6 +92,7 @@ async fn main() -> std::io::Result<()> {
     let mut block_stream = client.watch_blocks().await.unwrap();
     while block_stream.next().await.is_some() {
         let logs: Vec<CreatedFilter> = deposit_log.created_filter().query().await.unwrap();
+        println!("Got {:?} logs in the newest block", logs.len());
         for log in logs.iter() {
             tokio::spawn(watch_deposit(
                 deposit_log.clone(),
