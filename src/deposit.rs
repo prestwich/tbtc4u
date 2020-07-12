@@ -38,7 +38,7 @@ macro_rules! unpause {
 }
 
 /// Async delay stream
-pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
+fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
     stream::unfold((), move |_| Delay::new(duration).map(|_| Some(((), ())))).map(drop)
 }
 
@@ -46,9 +46,12 @@ pub enum DepositStates<'a, P: JsonRpcClient> {
     Updating(Pin<Box<Join<EthFut<'a, U256>, EthFut<'a, U256>>>>),
     PausedPollingState,
     PollingState(EthFut<'a, U256>),
+    PausedAwaitingFund,
     AwaitingFund(BTCFut<'a, Vec<UTXO>>),
     PausedGettingProof(TXID),
     GettingProof(TXID, BTCFut<'a, Option<Vec<TXID>>>),
+    PausedCheckBTCConfs(TXID),
+    CheckBTCConfs(TXID, BTCFut<'a, Option<usize>>),
     SubmittingProof(EthFut<'a, H256>),
     TrackingProofTx(EthPendingTx<'a, P>),
     Complete,
@@ -61,9 +64,12 @@ impl<P: JsonRpcClient> std::fmt::Debug for DepositStates<'_, P> {
             DepositStates::Updating(_) => "GettingState",
             DepositStates::PausedPollingState => "PausedPollingState",
             DepositStates::PollingState(_) => "PollingState",
+            DepositStates::PausedAwaitingFund => "PausedAwaitingFund",
             DepositStates::AwaitingFund(_) => "AwaitingFund",
             DepositStates::PausedGettingProof(_) => "PausedGettingProof",
             DepositStates::GettingProof(_, _) => "GettingProof",
+            DepositStates::PausedCheckBTCConfs(_) => "PausedCheckBTCConfs",
+            DepositStates::CheckBTCConfs(_, _) => "CheckBTCConfs",
             DepositStates::SubmittingProof(_) => "SubmittingProof",
             DepositStates::TrackingProofTx(_) => "TrackingProofTx",
             DepositStates::Complete => "Complete",
@@ -166,7 +172,13 @@ impl<'a, P: JsonRpcClient> std::future::Future for Deposit<'a, P> {
                     return Poll::Ready(false);
                 }
             }
+            DepositStates::PausedAwaitingFund => {
+                // // TODO:
+                // let fut = bitcoin.find_utxos_by_script();
+                // *state = DepositStates::AwaitingFund(fut);
+            }
             DepositStates::AwaitingFund(fut) => {
+                // Watch for a spend TX
                 if let Ok(utxos) = futures_util::ready!(fut.as_mut().poll(ctx)) {
                     if let Some(fund_txo) = utxos
                         .into_iter()
@@ -188,10 +200,25 @@ impl<'a, P: JsonRpcClient> std::future::Future for Deposit<'a, P> {
                 *state = DepositStates::GettingProof(*txid, fut);
             }
             DepositStates::GettingProof(_txid, _fut) => {
-
+                // if the proof is ready, check if it has confirms
+                // otherwise go to PausedGettingProof
             }
-            DepositStates::SubmittingProof(_fut) => {}
-            DepositStates::TrackingProofTx(_ptx) => {}
+            DepositStates::PausedCheckBTCConfs(txid) => {
+                let fut = unpause!(ctx, interval, bitcoin.get_confs(*txid));
+                *state = DepositStates::CheckBTCConfs(*txid, fut);
+            }
+            DepositStates::CheckBTCConfs(_txid, _fut) => {
+                // If there are enough confs (8?)
+                // put together the whole proof and submit it
+                // Otherwise go to PausedCheckBTCConfs
+            }
+            DepositStates::SubmittingProof(_fut) => {
+                // Wait for the pending tx
+            }
+            DepositStates::TrackingProofTx(_ptx) => {
+                // Wait for pending tx to resolve
+                // Go to complete or failure
+            }
             DepositStates::Complete => {
                 panic!("polled after completion")
             }
