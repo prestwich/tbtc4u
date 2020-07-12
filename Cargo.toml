@@ -13,9 +13,11 @@ ethers-core = { git = "https://github.com/gakonst/ethers-rs" }
 ethers-contract = { git = "https://github.com/gakonst/ethers-rs" }
 ethers-signers = { git = "https://github.com/gakonst/ethers-rs" }
 futures-util = { version = "0.3.5", default-features = false, features = ["std"] }
+futures-timer = "3.0.2"
 serde_json = { version = "1.0" }
 tokio-tls = { version = "0.3.1" }
 tokio = { version = "0.2.21", features = ["full"] }
 lazy_static = "1.4.0"
-
+pin-project = { version = "0.4.20", default-features = false }
 rmn-btc-provider = { path = "../riemann-rs/provider" }
+rmn-btc = { path = "../riemann-rs/bitcoin" }

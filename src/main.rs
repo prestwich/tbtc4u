@@ -1,12 +1,13 @@
-use std::{collections::HashMap, fs, sync::Arc};
-use tokio::time;
+mod deposit;
+
 use lazy_static::lazy_static;
+use std::{fs, sync::Arc};
+use tokio::time;
 
 use ethers::providers::{JsonRpcClient, Provider, ProviderError, Ws};
-use ethers_core::{abi::Abi, types::{Address, Filter}};
-use futures_util::lock::Mutex;
+use ethers_core::{abi::Abi, types::Filter};
 
-use rmn_btc_provider::{BTCProvider, esplora::EsploraProvider};
+use rmn_btc_provider::{esplora::EsploraProvider, PollingBTCProvider};
 
 /// Infura websocket address
 static INFURA: &str = "wss://ropsten.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
@@ -29,7 +30,7 @@ lazy_static! {
 
 // infinite loop printing events
 async fn watcher<P: JsonRpcClient>(
-    provider: Arc<Provider<P>>,
+    provider: Arc<Box<Provider<P>>>,
     abi: &Abi,
     event: &str,
     address: &str,
@@ -56,30 +57,20 @@ async fn watcher<P: JsonRpcClient>(
     }
 }
 
-pub enum DepositStates {}
-
-struct DepositInfo {
-    address: Address,
-    sats_expected: u64,
-    state: DepositStates,
-}
-
-struct App<P> {
-    ether: Arc<Provider<P>>,
-    bitcoin: Arc<Box<dyn BTCProvider>>,
-    deposits: Mutex<HashMap<Address, DepositInfo>>,
+struct App<P: JsonRpcClient> {
+    ether: Arc<Box<Provider<P>>>,
+    bitcoin: Arc<Box<dyn PollingBTCProvider>>,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let ws = Ws::connect(INFURA).await.unwrap();
-    let eth = Arc::new(Provider::new(ws));
-    let btc: Arc<Box<dyn BTCProvider>> = Arc::new(Box::new(EsploraProvider::default()));
+    let eth = Arc::new(Box::new(Provider::new(ws)));
+    let btc: Arc<Box<dyn PollingBTCProvider>> = Arc::new(Box::new(EsploraProvider::default()));
 
     let app = App {
         ether: eth.clone(),
         bitcoin: btc.clone(),
-        deposits: Default::default(),
     };
 
     let a = watcher(eth.clone(), &WETH_ABI, "Transfer", WETH);
@@ -87,7 +78,7 @@ async fn main() -> std::io::Result<()> {
     let c = watcher(eth, &WETH_ABI, "Deposit", WETH);
     tokio::spawn(a);
     tokio::spawn(b);
-    c.await;  // never returns
+    c.await; // never returns
 
     // let created = watcher(&eth, &ABI, "Created", TBTC_SYSTEM);
     // let registered = watcher(&eth, &ABI, "RegisteredPubkey", TBTC_SYSTEM);
