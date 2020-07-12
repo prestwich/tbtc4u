@@ -1,6 +1,5 @@
 use std::{
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll},
     time::Duration,
 };
@@ -13,13 +12,18 @@ use futures_util::{
 };
 use pin_project::pin_project;
 
-use ethers::providers::{
-    JsonRpcClient, PendingTransaction as EthPendingTx, Provider, ProviderError as EthProviderError,
+use ethers::{
+    signers::Wallet,
+    providers::{
+        JsonRpcClient, PendingTransaction as EthPendingTx, Provider, ProviderError as EthProviderError,
+    }
 };
 use ethers_core::types::{H256, U256};
 
 use rmn_btc::prelude::*;
 use rmn_btc_provider::{PollingBTCProvider, ProviderError as BTCProviderError};
+
+use crate::{Deposit as DepositContract, default_duration};
 
 type ProviderFut<'a, T, E> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + 'a + Send>>;
@@ -83,10 +87,9 @@ impl<P: JsonRpcClient> std::fmt::Debug for DepositStates<'_, P> {
 pub struct Deposit<'a, P: JsonRpcClient> {
     // address: Address,
     sats_expected: Option<u64>,
-    // contract: DepositContract,
+    contract: DepositContract<P, Wallet>,
     state: DepositStates<'a, P>,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,
-    ether: &'a Provider<P>,
     bitcoin: &'a dyn PollingBTCProvider,
 }
 
@@ -102,8 +105,7 @@ impl<'a, P: JsonRpcClient> std::fmt::Debug for Deposit<'a, P> {
 
 impl<'a, P: JsonRpcClient> Deposit<'a, P> {
     pub fn new(
-        // contract: &'static Contract,
-        ether: &'a Provider<P>,
+        contract: DepositContract<P, Wallet>,
         bitcoin: &'a dyn PollingBTCProvider,
     ) -> Self {
         // let fut = provider.call(req, None);
@@ -111,9 +113,8 @@ impl<'a, P: JsonRpcClient> Deposit<'a, P> {
             state: DepositStates::Failed,
             sats_expected: None,
             // state: DepositStates::Updating(futures_util::join(fut1, fut2)),
-            // contract,
-            interval: Box::new(new_interval(std::time::Duration::from_secs(15))),
-            ether,
+            contract,
+            interval: Box::new(new_interval(default_duration())),
             bitcoin,
         }
     }
@@ -124,12 +125,10 @@ impl<'a, P: JsonRpcClient> std::future::Future for Deposit<'a, P> {
 
     fn poll(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<bool> {
         let DepositProj {
-            // address,
             sats_expected,
             state,
-            // contract,
+            contract,
             interval,
-            ether: _ether,
             bitcoin,
         } = self.project();
 

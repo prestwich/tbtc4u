@@ -1,15 +1,23 @@
 mod deposit;
 
-use lazy_static::lazy_static;
-use std::{fs, sync::Arc};
+use std::{sync::Arc, time::Duration};
 use tokio::time;
 
-use ethers::providers::{JsonRpcClient, Provider, ProviderError, Ws};
-use ethers_core::{abi::Abi, types::Filter};
+use ethers::{
+    providers::{JsonRpcClient, Provider, ProviderError, Ws},
+    signers::{Client, Wallet}
+};
+use ethers_core::{abi::Abi, types::{Address, Filter}};
 
 use rmn_btc_provider::{esplora::EsploraProvider, PollingBTCProvider};
 
 use ethers_contract::abigen;
+
+static DEFAULT_POLL_INTERVAL_SECS: u64 = 15;
+
+pub(crate) fn default_duration() -> Duration {
+    Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS)
+}
 
 /// Infura websocket address
 static INFURA: &str = "wss://ropsten.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27";
@@ -48,32 +56,35 @@ async fn watcher<P: JsonRpcClient>(
             println!("{:?}", log);
         }
 
-        time::delay_for(std::time::Duration::new(5, 0)).await;
+        time::delay_for(default_duration()).await;
     }
-}
-
-struct App<P: JsonRpcClient> {
-    ether: Arc<Box<Provider<P>>>,
-    bitcoin: Arc<Box<dyn PollingBTCProvider>>,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let ws = Ws::connect(INFURA).await.unwrap();
-    let eth = Arc::new(Box::new(Provider::new(ws)));
     let btc: Arc<Box<dyn PollingBTCProvider>> = Arc::new(Box::new(EsploraProvider::default()));
 
-    let app = App {
-        ether: eth.clone(),
-        bitcoin: btc.clone(),
-    };
+    let ws = Ws::connect(INFURA).await.unwrap();
+    let eth = Provider::new(ws);
 
-    let a = watcher(eth.clone(), &WETH_ABI, "Transfer", WETH);
-    let b = watcher(eth.clone(), &WETH_ABI, "Approval", WETH);
-    let c = watcher(eth, &WETH_ABI, "Deposit", WETH);
-    tokio::spawn(a);
-    tokio::spawn(b);
-    c.await; // never returns
+    // This is a privkey
+    let signer: Wallet = "380eb0f3d505f087e438eca80bc4df9a7faa24f868e69fc0440261a0fc0567dc"
+        .parse()
+        .unwrap();
+
+    let client = Client::new(eth, signer);
+
+    let deposit_log = DepositLog::new(
+        TBTC_SYSTEM.parse::<Address>().unwrap(),
+        Arc::new(client)
+    );
+
+    // let a = watcher(eth.clone(), &WETH_ABI, "Transfer", WETH);
+    // let b = watcher(eth.clone(), &WETH_ABI, "Approval", WETH);
+    // let c = watcher(eth, &WETH_ABI, "Deposit", WETH);
+    // tokio::spawn(a);
+    // tokio::spawn(b);
+    // c.await; // never returns
 
     /*
     let created = watcher(eth.clone(), &DEPOSITLOG_ABI, "Created", TBTC_SYSTEM);
