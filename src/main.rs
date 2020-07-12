@@ -1,9 +1,9 @@
 // mod deposit;
 mod new_deposit;
 
-use futures_util::stream::StreamExt;
 use lazy_static::lazy_static;
 use std::{sync::Arc, time::Duration};
+use tokio::time;
 
 use ethers::{
     providers::{JsonRpcClient, Provider, Ws},
@@ -15,7 +15,7 @@ use rmn_btc_provider::{esplora::EsploraProvider, PollingBTCProvider};
 
 use ethers_contract::abigen;
 
-static DEFAULT_POLL_INTERVAL_SECS: u64 = 45;
+static DEFAULT_POLL_INTERVAL_SECS: u64 = 10;
 
 pub(crate) fn default_duration() -> Duration {
     Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS)
@@ -76,7 +76,7 @@ async fn main() -> std::io::Result<()> {
     let ws = Ws::connect(INFURA).await.unwrap();
     let eth = Provider::new(ws);
 
-    // This is a privkey
+    // This is a privkey. But it belongs to Georgios
     let signer: Wallet = "380eb0f3d505f087e438eca80bc4df9a7faa24f868e69fc0440261a0fc0567dc"
         .parse()
         .unwrap();
@@ -88,19 +88,29 @@ async fn main() -> std::io::Result<()> {
         client.clone(),
     ));
 
+    println!("Setting up chain watcher");
     // set up watcher loop
-    let mut block_stream = client.watch_blocks().await.unwrap();
-    while block_stream.next().await.is_some() {
-        let logs: Vec<CreatedFilter> = deposit_log.created_filter().query().await.unwrap();
-        println!("Got {:?} logs in the newest block", logs.len());
-        for log in logs.iter() {
-            tokio::spawn(watch_deposit(
-                deposit_log.clone(),
-                log.deposit_contract_address,
-                client.clone(),
-                btc.clone(),
-            ));
+    let mut last: u64 = client.get_block_number().await.unwrap().low_u64() + 1;
+    println!("Most recent block is {:?}", last);
+
+    loop {
+        time::delay_for(default_duration()).await;
+        let current = client.get_block_number().await.unwrap().low_u64();
+        if current == last { continue; }
+
+        if let Ok(block) = client.get_block(current).await {
+            last += 1;
+            println!("Got new block {:?}", block.hash);
+            let logs: Vec<CreatedFilter> = deposit_log.created_filter().query().await.unwrap();
+            println!("Got {:?} logs in the newest block", logs.len());
+            for log in logs.iter() {
+                tokio::spawn(watch_deposit(
+                    deposit_log.clone(),
+                    log.deposit_contract_address,
+                    client.clone(),
+                    btc.clone(),
+                ));
+            }
         }
     }
-    Ok(())
 }
