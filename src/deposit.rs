@@ -13,12 +13,13 @@ use futures_util::{
 use pin_project::pin_project;
 
 use ethers::{
+    contract::{ContractError as EthContractError},
     signers::Wallet,
     providers::{
-        JsonRpcClient, PendingTransaction as EthPendingTx, Provider, ProviderError as EthProviderError,
-    }
+        JsonRpcClient, PendingTransaction as EthPendingTx,
+    },
+    types::{H256, U256},
 };
-use ethers_core::types::{H256, U256};
 
 use rmn_btc::prelude::*;
 use rmn_btc_provider::{PollingBTCProvider, ProviderError as BTCProviderError};
@@ -29,7 +30,7 @@ type ProviderFut<'a, T, E> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + 'a + Send>>;
 
 type BTCFut<'a, T> = ProviderFut<'a, T, BTCProviderError>;
-type EthFut<'a, T> = ProviderFut<'a, T, EthProviderError>;
+type EthFut<'a, T> = ProviderFut<'a, T, EthContractError>;
 
 // Used to unpause things blocked by an interval. Uses `ready!` to shortcut to Pending
 // if the interval has not yet elapsed
@@ -104,6 +105,7 @@ impl<'a, P: JsonRpcClient> std::fmt::Debug for Deposit<'a, P> {
 }
 
 impl<'a, P: JsonRpcClient> Deposit<'a, P> {
+    /// Instantiate
     pub fn new(
         contract: DepositContract<P, Wallet>,
         bitcoin: &'a dyn PollingBTCProvider,
@@ -142,18 +144,20 @@ impl<'a, P: JsonRpcClient> std::future::Future for Deposit<'a, P> {
                     }
                     *sats_expected = Some(sats.low_u64());
 
-                // // TODO:
-                // let fut = Box::pin(contract.get_current_state());
-                // *state = DepositStates::PollingState(fut)
+                    // TODO:
+                    let call = contract.get_current_state();
+                    let fut = Box::pin(async move { call.call().await });
+                    *state = DepositStates::PollingState(fut)
                 } else {
                     *state = DepositStates::Failed;
                     return Poll::Ready(false);
                 }
             }
             DepositStates::PausedPollingState => {
-                // // TODO:
-                // let fut = unpause!(ctx, interval, contract.get_current_state());
-                // *state = DepositStates::PollingState(fut);
+                // TODO:
+                let call = contract.get_current_state();
+                let fut = unpause!(ctx, interval, async move { call.call().await });
+                *state = DepositStates::PollingState(fut);
             }
             DepositStates::PollingState(fut) => {
                 if let Ok(new_deposit_state) = futures_util::ready!(fut.as_mut().poll(ctx)) {

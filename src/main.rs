@@ -75,7 +75,7 @@ async fn watcher<P: JsonRpcClient>(
 async fn watch_deposit<'a, P: JsonRpcClient>(
     address: Address,
     client: Arc<Client<P, Wallet>>,
-    bitcoin: &'a dyn PollingBTCProvider
+    bitcoin: Arc<Box<dyn PollingBTCProvider>>
 ) -> bool {
     {
         let mut already_tracked = APP.already_tracked.lock().await;
@@ -83,7 +83,7 @@ async fn watch_deposit<'a, P: JsonRpcClient>(
         already_tracked.insert(address);
     }
     let contract = Deposit::new(address, client);
-    crate::deposit::Deposit::new(contract, bitcoin).await
+    crate::deposit::Deposit::new(contract, bitcoin.as_ref().as_ref()).await
 }
 
 #[tokio::main]
@@ -102,8 +102,10 @@ async fn main() -> std::io::Result<()> {
 
     let deposit_log = DepositLog::new(
         TBTC_SYSTEM.parse::<Address>().unwrap(),
-        client,
+        client.clone(),
     );
+
+    tokio::spawn(watch_deposit(WETH.parse().unwrap(), client.clone(), btc.clone()));
 
     // TODO:
     // Poll deposit_log events.
