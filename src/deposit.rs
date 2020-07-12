@@ -13,18 +13,16 @@ use futures_util::{
 use pin_project::pin_project;
 
 use ethers::{
-    contract::{ContractError as EthContractError},
+    contract::ContractError as EthContractError,
+    providers::{JsonRpcClient, PendingTransaction as EthPendingTx},
     signers::Wallet,
-    providers::{
-        JsonRpcClient, PendingTransaction as EthPendingTx,
-    },
     types::{H256, U256},
 };
 
 use rmn_btc::prelude::*;
 use rmn_btc_provider::{PollingBTCProvider, ProviderError as BTCProviderError};
 
-use crate::{Deposit as DepositContract, default_duration};
+use crate::{default_duration, Deposit as DepositContract};
 
 type ProviderFut<'a, T, E> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + 'a + Send>>;
@@ -49,6 +47,8 @@ fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
 
 pub enum DepositStates<'a, P: JsonRpcClient> {
     Updating(Pin<Box<Join<EthFut<'a, U256>, EthFut<'a, U256>>>>),
+    // PausedPollingPubkey,
+    // PollingPubkey(EthFut<'a, >),
     PausedPollingState,
     PollingState(EthFut<'a, U256>),
     PausedAwaitingFund,
@@ -106,10 +106,7 @@ impl<'a, P: JsonRpcClient> std::fmt::Debug for Deposit<'a, P> {
 
 impl<'a, P: JsonRpcClient> Deposit<'a, P> {
     /// Instantiate
-    pub fn new(
-        contract: DepositContract<P, Wallet>,
-        bitcoin: &'a dyn PollingBTCProvider,
-    ) -> Self {
+    pub fn new(contract: DepositContract<P, Wallet>, bitcoin: &'a dyn PollingBTCProvider) -> Self {
         // let fut = provider.call(req, None);
         Self {
             state: DepositStates::Failed,
@@ -153,6 +150,8 @@ impl<'a, P: JsonRpcClient> std::future::Future for Deposit<'a, P> {
                     return Poll::Ready(false);
                 }
             }
+            // DepositStates::PausedPollingPubkey => {},
+            // DepositStates::PollingPubkey => {},
             DepositStates::PausedPollingState => {
                 // TODO:
                 let call = contract.get_current_state();
@@ -222,12 +221,8 @@ impl<'a, P: JsonRpcClient> std::future::Future for Deposit<'a, P> {
                 // Wait for pending tx to resolve
                 // Go to complete or failure
             }
-            DepositStates::Complete => {
-                panic!("polled after completion")
-            }
-            DepositStates::Failed => {
-                panic!("polled after completion")
-            }
+            DepositStates::Complete => panic!("polled after completion"),
+            DepositStates::Failed => panic!("polled after completion"),
         }
 
         Poll::Pending

@@ -1,14 +1,18 @@
 mod deposit;
+mod new_deposit;
 
+use lazy_static::lazy_static;
 use std::{sync::Arc, time::Duration};
 use tokio::time;
-use lazy_static::lazy_static;
 
 use ethers::{
     providers::{JsonRpcClient, Provider, ProviderError, Ws},
-    signers::{Client, Wallet}
+    signers::{Client, Wallet},
 };
-use ethers_core::{abi::Abi, types::{Address, Filter}};
+use ethers_core::{
+    abi::Abi,
+    types::{Address, Filter},
+};
 
 use rmn_btc_provider::{esplora::EsploraProvider, PollingBTCProvider};
 
@@ -36,10 +40,9 @@ lazy_static! {
     static ref APP: App = Default::default();
 }
 
-
 #[derive(Default)]
 struct App {
-    already_tracked: futures_util::lock::Mutex<std::collections::HashSet<Address>>
+    already_tracked: futures_util::lock::Mutex<std::collections::HashSet<Address>>,
 }
 
 // infinite loop printing events
@@ -75,11 +78,13 @@ async fn watcher<P: JsonRpcClient>(
 async fn watch_deposit<'a, P: JsonRpcClient>(
     address: Address,
     client: Arc<Client<P, Wallet>>,
-    bitcoin: Arc<Box<dyn PollingBTCProvider>>
+    bitcoin: Arc<Box<dyn PollingBTCProvider>>,
 ) -> bool {
     {
         let mut already_tracked = APP.already_tracked.lock().await;
-        if already_tracked.contains(&address) { return false; }
+        if already_tracked.contains(&address) {
+            return false;
+        }
         already_tracked.insert(address);
     }
     let contract = Deposit::new(address, client);
@@ -100,12 +105,13 @@ async fn main() -> std::io::Result<()> {
 
     let client = Arc::new(Client::new(eth, signer));
 
-    let deposit_log = DepositLog::new(
-        TBTC_SYSTEM.parse::<Address>().unwrap(),
-        client.clone(),
-    );
+    let deposit_log = DepositLog::new(TBTC_SYSTEM.parse::<Address>().unwrap(), client.clone());
 
-    tokio::spawn(watch_deposit(WETH.parse().unwrap(), client.clone(), btc.clone()));
+    tokio::spawn(watch_deposit(
+        WETH.parse().unwrap(),
+        client.clone(),
+        btc.clone(),
+    ));
 
     // TODO:
     // Poll deposit_log events.
