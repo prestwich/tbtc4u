@@ -17,12 +17,16 @@ static TBTC_SYSTEM: &str = "14dc06f762e7f4a756825c1a1da569b3180153cb";
 static WETH: &str = "0a180a76e4466bf68a7f86fb029bed3cccfaaac5";
 
 lazy_static! {
-    static ref ABI: Abi = {
-        let json = fs::read_to_string("depositLog.json").unwrap();
+    static ref DEPOSIT_LOG_ABI: Abi = {
+        let json = fs::read_to_string("abi/depositLog.json").unwrap();
         serde_json::from_str(&json).unwrap()
     };
     static ref WETH_ABI: Abi = {
-        let json = fs::read_to_string("weth.json").unwrap();
+        let json = fs::read_to_string("abi/weth.json").unwrap();
+        serde_json::from_str(&json).unwrap()
+    };
+    static ref DEPOSIT_ABI: Abi = {
+        let json = fs::read_to_string("abi/deposit.json").unwrap();
         serde_json::from_str(&json).unwrap()
     };
 }
@@ -89,10 +93,10 @@ async fn main() -> std::io::Result<()> {
     tokio::spawn(b);
     c.await;  // never returns
 
-    // let created = watcher(&eth, &ABI, "Created", TBTC_SYSTEM);
-    // let registered = watcher(&eth, &ABI, "RegisteredPubkey", TBTC_SYSTEM);
-    // let redemption_signature = watcher(&eth, &ABI, "GotRedemptionSignature", DEPOSIT_FACTORY);
-    // let setup_failed = watcher(&eth, &ABI, "SetupFailed", DEPOSIT_FACTORY);
+    // let created = watcher(&eth, &DEPOSIT_LOG_ABI, "Created", TBTC_SYSTEM);
+    // let registered = watcher(&eth, &DEPOSIT_LOG_ABI, "RegisteredPubkey", TBTC_SYSTEM);
+    // let redemption_signature = watcher(&eth, &DEPOSIT_LOG_ABI, "GotRedemptionSignature", DEPOSIT_FACTORY);
+    // let setup_failed = watcher(&eth, &DEPOSIT_LOG_ABI, "SetupFailed", DEPOSIT_FACTORY);
     // let (_, _, _, _) = join!(created, registered, redemption_signature, setup_failed);
 
     Ok(())
