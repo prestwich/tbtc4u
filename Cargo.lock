@@ -1997,6 +1997,7 @@ dependencies = [
  "futures-util",
  "lazy_static",
  "pin-project",
+ "riemann-core",
  "rmn-btc",
  "rmn-btc-provider",
  "serde_json",

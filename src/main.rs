@@ -1,4 +1,4 @@
-mod deposit;
+// mod deposit;
 mod new_deposit;
 
 use lazy_static::lazy_static;
@@ -76,6 +76,7 @@ async fn watcher<P: JsonRpcClient>(
 
 /// Make a new deposit state machine
 async fn watch_deposit<'a, P: JsonRpcClient>(
+    logger: Arc<DepositLog<P, Wallet>>,
     address: Address,
     client: Arc<Client<P, Wallet>>,
     bitcoin: Arc<Box<dyn PollingBTCProvider>>,
@@ -88,7 +89,7 @@ async fn watch_deposit<'a, P: JsonRpcClient>(
         already_tracked.insert(address);
     }
     let contract = Deposit::new(address, client);
-    crate::deposit::Deposit::new(contract, bitcoin.as_ref().as_ref()).await
+    crate::new_deposit::check(logger.as_ref(), &contract, bitcoin.as_ref().as_ref()).await.is_ok()
 }
 
 #[tokio::main]
@@ -105,9 +106,11 @@ async fn main() -> std::io::Result<()> {
 
     let client = Arc::new(Client::new(eth, signer));
 
-    let deposit_log = DepositLog::new(TBTC_SYSTEM.parse::<Address>().unwrap(), client.clone());
+    let deposit_log = Arc::new(DepositLog::new(TBTC_SYSTEM.parse::<Address>().unwrap(), client.clone()));
 
+    // pass in actual addresses like this
     tokio::spawn(watch_deposit(
+        deposit_log.clone(),
         WETH.parse().unwrap(),
         client.clone(),
         btc.clone(),

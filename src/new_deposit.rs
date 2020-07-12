@@ -1,13 +1,10 @@
 use tokio::time;
 
-use ethers::{
-    contract::ContractError,
-    providers::JsonRpcClient,
-    signers::Wallet,
-};
+use ethers::{contract::ContractError, providers::JsonRpcClient, signers::Wallet};
 
+use crate::{default_duration, Deposit, DepositLog};
+use rmn_btc::prelude::*;
 use rmn_btc_provider::PollingBTCProvider;
-use crate::{Deposit, DepositLog, default_duration};
 
 macro_rules! check_state {
     ($deposit:expr) => {{
@@ -28,13 +25,41 @@ pub(crate) async fn state<P: JsonRpcClient>(
         .map(|u| u.low_u64())
 }
 
-pub fn script(x: [u8; 32], y: [u8;32]) -> rmn_btc::types::ScriptPubkey {
+pub fn script(x: [u8; 32], y: [u8; 32]) -> rmn_btc::types::ScriptPubkey {
     let mut pubkey = Vec::with_capacity(35);
     pubkey.push(0);
     pubkey.push(0x14);
     pubkey.push((y[31] & 1) + 2);
     pubkey.extend(&x);
     rmn_btc::types::ScriptPubkey::from(pubkey.to_vec())
+}
+
+pub fn flatten_txids(nodes: &Vec<TXID>) -> Vec<u8> {
+    let mut n = vec![];
+    for node in nodes {
+        n.extend(&node.internal());
+    }
+    n
+}
+
+pub fn flatten_headers(headers: &Vec<BlockHash>) -> Vec<u8> {
+    let mut h = vec![];
+    for header in headers {
+        h.extend(&header.internal());
+    }
+    h
+}
+
+pub fn write_vin(tx: &BitcoinTx) -> Vec<u8> {
+    let mut vin = vec![];
+    LegacyTx::write_prefix_vec(&mut vin, &tx.outputs()).unwrap();
+    vin
+}
+
+pub fn write_vout(tx: &BitcoinTx) -> Vec<u8> {
+    let mut vout = vec![];
+    LegacyTx::write_prefix_vec(&mut vout, &tx.outputs()).unwrap();
+    vout
 }
 
 pub(crate) async fn check<P: JsonRpcClient>(
@@ -51,7 +76,7 @@ pub(crate) async fn check<P: JsonRpcClient>(
             .topic1(deposit.address())
             .query()
             .await?;
-            // TODO: delay
+        // TODO: delay
         if registered.is_empty() {
             time::delay_for(default_duration()).await;
             continue;
@@ -75,15 +100,31 @@ pub(crate) async fn check<P: JsonRpcClient>(
 
     loop {
         if let Some(confs) = bitcoin.get_confs(txid).await? {
-             if confs > 10 { break; }
+            if confs > 10 {
+                break;
+            }
         }
         time::delay_for(default_duration()).await;
     }
 
-    let tx = bitcoin.get_tx(txid).await?;
+    let tx = bitcoin.get_tx(txid).await?.expect("has confs");
     let output_idx = utxo.outpoint.idx;
-    let merkle_proof = bitcoin.get_merkle(txid).await?;
+    let (pos, nodes) = bitcoin.get_merkle(txid).await?.expect("has confs");
+    let headers = bitcoin.get_confirming_headers(txid, 10).await?;
+    let result = deposit
+        .provide_btc_funding_proof(
+            tx.version().to_le_bytes(),
+            write_vin(&tx),
+            write_vout(&tx),
+            tx.locktime().to_le_bytes(),
+            output_idx as u8,
+            flatten_txids(&nodes),
+            pos.into(),
+            flatten_headers(&headers),
+        )
+        .send()
+        .await;
 
-
-    unimplemented!()
+    println!("result! {:?} {:?}", deposit.address(), &result);
+    Ok(result.is_ok())
 }
