@@ -1,22 +1,27 @@
+# tbtc4u
+
+Pro-bono prover for tBTC Deposits. Run this software to be a kind person.
+
+This is HACKATHON SOFTWARE. Don't trust it with mainnet funds. Ropsten only!
+
+tbtc4u watches for Deposits that aren't being set up properly, and helps them
+along. It helps people avoid losing BTC due to operator error, by proving BTC
+funding to tBTC deposits if the owner doesn't.
+
+tbtc4u uses `ethers-rs` and `riemann-rs` providers to run chain eth and bitcoin
+chain polling, and tracks deposits through several states. It watches for a
+specific critical failure, and tries to help fix it
+
 # Goals:
 
-1. Listen to TBTC on ropsten
-2. Index deposits being set up
-3. Watch BTC for funding txns
-4. Send funding proofs to ropsten
-5. Run as CLI/daemon
-6. User-facing data output
+- [x] Listen to TBTC on ropsten
+- [x] Index deposits being set up
+- [x] Watch BTC for funding txns
+- [x] Send funding proofs to ropsten
+- [x] Run as CLI/daemon
+- [x] User-facing data output
 
 ## Less-important Goals
 
-1. Config options (e.g. infura key)
-2. Sweep funds held by hot key
-
-## Tasks
-
-- [x] 1. Check if ethers supports websockets
-- [x] 2. Provider for node RPC
-- [x] 3. Figure out deposit logging contract address on ropsten
-    1. 0x14dC06F762E7f4a756825c1A1dA569b3180153cB -- TBTC system
-- [ ] 4. Figure out how to trigger deposits on ropsten
-- [ ] 5. Write something to get SPV proofs from a provider
+- [ ] Config options (e.g. infura key)
+- [ ] Sweep funds held by hot key
