@@ -12,6 +12,10 @@ tbtc4u uses `ethers-rs` and `riemann-rs` providers to run chain eth and bitcoin
 chain polling, and tracks deposits through several states. It watches for a
 specific critical failure, and tries to help fix it
 
+# Requirements:
+
+Clone `riemann-rs` on the `provider` branch alongside this repo
+
 # Goals:
 
 - [x] Listen to TBTC on ropsten
