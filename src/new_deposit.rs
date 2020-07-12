@@ -90,8 +90,12 @@ pub(crate) async fn check<P: JsonRpcClient>(
     };
 
     let script = script(pubkey_x, pubkey_y);
-
     check_state!(deposit);
+    println!(
+        "BTC address for {} is {:?}",
+        deposit.address(),
+        rmn_btc::enc::encoder::TestnetEncoder::encode_address(&script)
+    );
     println!("Waiting for funding of {}", deposit.address());
 
     let utxo = loop {

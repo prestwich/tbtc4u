@@ -96,7 +96,9 @@ async fn main() -> std::io::Result<()> {
     loop {
         time::delay_for(default_duration()).await;
         let current = client.get_block_number().await.unwrap().low_u64();
-        if current == last { continue; }
+        if current == last {
+            continue;
+        }
 
         if let Ok(block) = client.get_block(current).await {
             last += 1;
