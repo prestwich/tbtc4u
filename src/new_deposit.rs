@@ -27,11 +27,13 @@ pub(crate) async fn state<P: JsonRpcClient>(
 }
 
 pub fn script(x: [u8; 32], y: [u8; 32]) -> rmn_btc::types::ScriptPubkey {
-    let mut pubkey = Vec::with_capacity(35);
-    pubkey.push(0);
-    pubkey.push(0x14);
-    pubkey.push((y[31] & 1) + 2);
-    pubkey.extend(&x);
+    let mut pubkey = [0u8; 33];
+    pubkey[0] = (y[31] & 1) + 2;
+    pubkey[1..].copy_from_slice(&x);
+    let mut script = Vec::with_capacity(22);
+    script.push(0);
+    script.push(0x14);
+    script.extend(&bitcoin_spv::btcspv::hash160(&pubkey)[..]);
     rmn_btc::types::ScriptPubkey::from(pubkey.to_vec())
 }
 

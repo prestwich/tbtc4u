@@ -1989,6 +1989,7 @@ dependencies = [
 name = "tbtc4u"
 version = "0.1.0"
 dependencies = [
+ "bitcoin-spv",
  "ethers",
  "ethers-contract",
  "ethers-core",
