@@ -10,6 +10,7 @@ macro_rules! check_state {
     ($deposit:expr) => {{
         let s = state($deposit).await?;
         if s > 2 {
+            println!("Deposit closed okay {}", $deposit.address());
             return Ok(false);
         }
     }};
@@ -34,7 +35,7 @@ pub fn script(x: [u8; 32], y: [u8; 32]) -> rmn_btc::types::ScriptPubkey {
     rmn_btc::types::ScriptPubkey::from(pubkey.to_vec())
 }
 
-pub fn flatten_txids(nodes: &Vec<TXID>) -> Vec<u8> {
+pub fn flatten_hashes<M: MarkedDigest<Digest = Hash256Digest>>(nodes: &[M]) -> Vec<u8> {
     let mut n = vec![];
     for node in nodes {
         n.extend(&node.internal());
@@ -42,10 +43,10 @@ pub fn flatten_txids(nodes: &Vec<TXID>) -> Vec<u8> {
     n
 }
 
-pub fn flatten_headers(headers: &Vec<BlockHash>) -> Vec<u8> {
+pub fn flatten_headers(headers: &[RawHeader]) -> Vec<u8> {
     let mut h = vec![];
     for header in headers {
-        h.extend(&header.internal());
+        h.extend(&header[..]);
     }
     h
 }
@@ -70,6 +71,9 @@ pub(crate) async fn check<P: JsonRpcClient>(
     check_state!(deposit);
     let expected_sats = deposit.lot_size_satoshis().call().await?;
 
+    check_state!(deposit);
+    println!("Waiting for pubkey of {}", deposit.address());
+
     let (pubkey_x, pubkey_y) = loop {
         let registered = logger
             .registered_pubkey_filter()
@@ -87,6 +91,9 @@ pub(crate) async fn check<P: JsonRpcClient>(
 
     let script = script(pubkey_x, pubkey_y);
 
+    check_state!(deposit);
+    println!("Waiting for funding of {}", deposit.address());
+
     let utxo = loop {
         let utxos = bitcoin.get_utxos_by_script(&script).await?;
         if let Some(utxo) = utxos.into_iter().find(|u| u.value >= expected_sats) {
@@ -98,6 +105,9 @@ pub(crate) async fn check<P: JsonRpcClient>(
     };
     let txid = utxo.outpoint.txid;
 
+    check_state!(deposit);
+    println!("Waiting for confs for {}", deposit.address());
+
     loop {
         if let Some(confs) = bitcoin.get_confs(txid).await? {
             if confs > 10 {
@@ -106,6 +116,9 @@ pub(crate) async fn check<P: JsonRpcClient>(
         }
         time::delay_for(default_duration()).await;
     }
+
+    check_state!(deposit);
+    println!("building SPV proof for {}", deposit.address());
 
     let tx = bitcoin.get_tx(txid).await?.expect("has confs");
     let output_idx = utxo.outpoint.idx;
@@ -118,13 +131,13 @@ pub(crate) async fn check<P: JsonRpcClient>(
             write_vout(&tx),
             tx.locktime().to_le_bytes(),
             output_idx as u8,
-            flatten_txids(&nodes),
+            flatten_hashes(&nodes),
             pos.into(),
             flatten_headers(&headers),
         )
         .send()
         .await;
 
-    println!("result! {:?} {:?}", deposit.address(), &result);
+    println!("result! {} {:?}", deposit.address(), &result);
     Ok(result.is_ok())
 }
