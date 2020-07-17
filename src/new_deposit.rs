@@ -3,8 +3,8 @@ use tokio::time;
 use ethers::{contract::ContractError, providers::JsonRpcClient, signers::Wallet};
 
 use crate::{default_duration, Deposit, DepositLog};
-use rmn_btc::prelude::*;
-use rmn_btc_provider::PollingBTCProvider;
+use bitcoins::prelude::*;
+use bitcoins_provider::provider::PollingBTCProvider;
 
 macro_rules! check_state {
     ($deposit:expr) => {{
@@ -26,7 +26,7 @@ pub(crate) async fn state<P: JsonRpcClient>(
         .map(|u| u.low_u64())
 }
 
-pub fn script(x: [u8; 32], y: [u8; 32]) -> rmn_btc::types::ScriptPubkey {
+pub fn script(x: [u8; 32], y: [u8; 32]) -> bitcoins::types::ScriptPubkey {
     let mut pubkey = [0u8; 33];
     pubkey[0] = (y[31] & 1) + 2;
     pubkey[1..].copy_from_slice(&x);
@@ -34,13 +34,13 @@ pub fn script(x: [u8; 32], y: [u8; 32]) -> rmn_btc::types::ScriptPubkey {
     script.push(0);
     script.push(0x14);
     script.extend(&bitcoin_spv::btcspv::hash160(&pubkey)[..]);
-    rmn_btc::types::ScriptPubkey::from(pubkey.to_vec())
+    bitcoins::types::ScriptPubkey::from(pubkey.to_vec())
 }
 
-pub fn flatten_hashes<M: MarkedDigest<Digest = Hash256Digest>>(nodes: &[M]) -> Vec<u8> {
+pub fn flatten<A: AsRef<[u8]>>(nodes: &[A]) -> Vec<u8> {
     let mut n = vec![];
     for node in nodes {
-        n.extend(&node.internal());
+        n.extend(node.as_ref());
     }
     n
 }
@@ -48,7 +48,7 @@ pub fn flatten_hashes<M: MarkedDigest<Digest = Hash256Digest>>(nodes: &[M]) -> V
 pub fn flatten_headers(headers: &[RawHeader]) -> Vec<u8> {
     let mut h = vec![];
     for header in headers {
-        h.extend(&header[..]);
+        h.extend(header.as_ref());
     }
     h
 }
@@ -96,7 +96,7 @@ pub(crate) async fn check<P: JsonRpcClient>(
     println!(
         "BTC address for {} is {:?}",
         deposit.address(),
-        rmn_btc::enc::encoder::TestnetEncoder::encode_address(&script)
+        bitcoins::enc::encoder::TestnetEncoder::encode_address(&script)
     );
     println!("Waiting for funding of {}", deposit.address());
 
@@ -137,7 +137,7 @@ pub(crate) async fn check<P: JsonRpcClient>(
             write_vout(&tx),
             tx.locktime().to_le_bytes(),
             output_idx as u8,
-            flatten_hashes(&nodes),
+            flatten(&nodes),
             pos.into(),
             flatten_headers(&headers),
         )

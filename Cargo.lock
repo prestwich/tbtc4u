@@ -150,6 +150,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoins"
+version = "0.1.0-rc.1"
+dependencies = [
+ "base58check",
+ "bech32",
+ "bitcoin-spv",
+ "coins-bip32",
+ "coins-core",
+ "hex",
+ "serde",
+ "sha2 0.8.2",
+ "thiserror",
+]
+
+[[package]]
+name = "bitcoins-provider"
+version = "0.1.0-alpha"
+dependencies = [
+ "async-trait",
+ "bitcoins",
+ "bytes",
+ "coins-core",
+ "futures-core",
+ "futures-timer",
+ "futures-util",
+ "hex",
+ "lru",
+ "pin-project",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -255,6 +291,37 @@ name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
+
+[[package]]
+name = "coins-bip32"
+version = "0.1.0-beta.0"
+dependencies = [
+ "bitcoin-spv",
+ "bs58",
+ "coins-core",
+ "hmac 0.7.1",
+ "lazy_static",
+ "libsecp256k1 0.4.0",
+ "libsecp256k1-core",
+ "secp256k1",
+ "serde",
+ "sha2 0.8.2",
+ "thiserror",
+]
+
+[[package]]
+name = "coins-core"
+version = "0.1.0-rc.1"
+dependencies = [
+ "base64 0.12.3",
+ "bitcoin-spv",
+ "blake2-rfc",
+ "hex",
+ "serde",
+ "serde_derive",
+ "sha2 0.8.2",
+ "thiserror",
+]
 
 [[package]]
 name = "const-random"
@@ -1616,20 +1683,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "riemann-core"
-version = "0.1.0-rc.1"
-dependencies = [
- "base64 0.12.3",
- "bitcoin-spv",
- "blake2-rfc",
- "hex",
- "serde",
- "serde_derive",
- "sha2 0.8.2",
- "thiserror",
-]
-
-[[package]]
 name = "ring"
 version = "0.16.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1662,58 +1715,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a7d3f9bed94764eac15b8f14af59fac420c236adaff743b7bcc88e265cb4345"
 dependencies = [
  "rustc-hex",
-]
-
-[[package]]
-name = "rmn-bip32"
-version = "0.1.0-beta.0"
-dependencies = [
- "bitcoin-spv",
- "bs58",
- "hmac 0.7.1",
- "lazy_static",
- "libsecp256k1 0.4.0",
- "libsecp256k1-core",
- "riemann-core",
- "secp256k1",
- "serde",
- "sha2 0.8.2",
- "thiserror",
-]
-
-[[package]]
-name = "rmn-btc"
-version = "0.1.0-rc.1"
-dependencies = [
- "base58check",
- "bech32",
- "bitcoin-spv",
- "hex",
- "riemann-core",
- "rmn-bip32",
- "serde",
- "sha2 0.8.2",
- "thiserror",
-]
-
-[[package]]
-name = "rmn-btc-provider"
-version = "0.1.0-alpha"
-dependencies = [
- "async-trait",
- "futures-core",
- "futures-timer",
- "futures-util",
- "hex",
- "lru",
- "pin-project",
- "reqwest",
- "riemann-core",
- "rmn-btc",
- "serde",
- "serde_json",
- "thiserror",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1980,6 +1981,9 @@ name = "tbtc4u"
 version = "0.1.0"
 dependencies = [
  "bitcoin-spv",
+ "bitcoins",
+ "bitcoins-provider",
+ "coins-core",
  "ethers",
  "ethers-contract",
  "ethers-core",
@@ -1988,9 +1992,6 @@ dependencies = [
  "futures-util",
  "lazy_static",
  "pin-project",
- "riemann-core",
- "rmn-btc",
- "rmn-btc-provider",
  "serde_json",
  "tokio",
  "tokio-tls",

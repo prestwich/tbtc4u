@@ -8,13 +8,13 @@ tbtc4u watches for Deposits that aren't being set up properly, and helps them
 along. It helps people avoid losing BTC due to operator error, by proving BTC
 funding to tBTC deposits if the owner doesn't.
 
-tbtc4u uses `ethers-rs` and `riemann-rs` providers to run chain eth and bitcoin
+tbtc4u uses `ethers-rs` and `bitcoins-rs` providers to run chain eth and bitcoin
 chain polling, and tracks deposits through several states. It watches for a
 specific critical failure, and tries to help fix it
 
 # Requirements:
 
-Clone `riemann-rs` on the `provider` branch alongside this repo
+Clone `bitcoins-rs` alongside this repo
 
 # Goals:
 

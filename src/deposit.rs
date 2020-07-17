@@ -19,8 +19,8 @@ use ethers::{
     types::{H256, U256},
 };
 
-use rmn_btc::prelude::*;
-use rmn_btc_provider::{PollingBTCProvider, ProviderError as BTCProviderError};
+use bitcoins::prelude::*;
+use bitcoins_provider::{PollingBTCProvider, ProviderError as BTCProviderError};
 
 use crate::{default_duration, Deposit as DepositContract};
 

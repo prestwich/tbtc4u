@@ -21,6 +21,6 @@ lazy_static = "1.4.0"
 pin-project = { version = "0.4.20", default-features = false }
 
 bitcoin-spv = "2.0.0"
-rmn-btc-provider = { path = "../riemann-rs/provider", default-features = false, features = ["testnet", "esplora"] }
-rmn-btc = { path = "../riemann-rs/bitcoin", default-features = false, features = ["testnet"] }
-riemann-core = { path = "../riemann-rs/core" }
+bitcoins-provider = { path = "../bitcoins-rs/provider", default-features = false, features = ["testnet", "esplora"] }
+bitcoins = { path = "../bitcoins-rs/bitcoins", default-features = false, features = ["testnet"] }
+coins-core = { path = "../bitcoins-rs/core" }

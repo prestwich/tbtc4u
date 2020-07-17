@@ -11,7 +11,7 @@ use ethers::{
 };
 use ethers_core::types::Address;
 
-use rmn_btc_provider::{esplora::EsploraProvider, PollingBTCProvider};
+use bitcoins_provider::{esplora::EsploraProvider, provider::{CachingProvider, PollingBTCProvider}};
 
 use ethers_contract::abigen;
 
@@ -71,7 +71,7 @@ async fn watch_deposit<'a, P: JsonRpcClient>(
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let btc: Arc<Box<dyn PollingBTCProvider>> = Arc::new(Box::new(EsploraProvider::default()));
+    let btc: Arc<Box<dyn PollingBTCProvider>> = Arc::new(Box::new(CachingProvider::from(EsploraProvider::default())));
 
     let ws = Ws::connect(INFURA).await.unwrap();
     let eth = Provider::new(ws);
